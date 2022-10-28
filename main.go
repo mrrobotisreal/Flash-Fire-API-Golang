@@ -340,8 +340,68 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 }
 
 func SetScores(response http.ResponseWriter, request *http.Request) {
+	type iScore struct {
+		Score int `json:"score,omitempty"`
+	}
 	response.Header().Add("content-type", "application/json")
-	var scores Scores
+	params := mux.Vars(request)
+	username, _ := params["user"]
+	collectionName, _ := params["collection"]
+	mode, _ := params["mode"]
+	var scores iScore
+	var user User
+	json.NewDecoder(request.Body).Decode(&scores)
+	collection := client.Database("flash-fire-webapp").Collection("users")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte("{\n" +
+			`    "message": "` + err.Error() + `",` + "\n" +
+			`    "where": "SetScores - FindOne Operation"` + "\n}"))
+	}
+	var updatedCollection Collection
+	for i := 0; i < len(user.Collections); i++ {
+		if user.Collections[i].Name == collectionName {
+			updatedCollection = user.Collections[i]
+			switch mode {
+			case "study":
+				updatedCollection.TotalScores = append(updatedCollection.TotalScores, scores.Score)
+				updatedCollection.MostRecentScore = scores.Score
+				updatedCollection.HighScore = findMax(updatedCollection.TotalScores)
+			case "easy":
+				updatedCollection.TotalGradesEasy = append(updatedCollection.TotalGradesEasy, scores.Score)
+				updatedCollection.MostRecentGradeEasy = scores.Score
+				updatedCollection.HighGradeEasy = findMax(updatedCollection.TotalGradesEasy)
+			case "difficult":
+				updatedCollection.TotalGradesDifficult = append(updatedCollection.TotalGradesDifficult, scores.Score)
+				updatedCollection.MostRecentGradeDifficult = scores.Score
+				updatedCollection.HighGradeDifficult = findMax(updatedCollection.TotalGradesDifficult)
+			}
+			user.Collections[i] = updatedCollection
+			break
+		}
+	}
+	filter := bson.D{{"username", username}}
+	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
+	result, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte("{\n" +
+			`    "message": "` + err.Error() + `",` + "\n" +
+			`    "where": "SetScores - UpdateOne Operation"` + "\n}"))
+	}
+	json.NewEncoder(response).Encode(&result)
+}
+
+func findMax(scores []int) int {
+	max := scores[0]
+	for _, score := range scores {
+		if score > max {
+			max = score
+		}
+	}
+	return max
 }
 
 func main() {
@@ -358,6 +418,6 @@ func main() {
 	router.HandleFunc("/collections/{user}/set-view-date", SetViewDate).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
 	router.HandleFunc("/collections/{user}/scores/{collection}", GetScores).Methods("GET")
-	router.HandleFunc("/collections/{user}/scores/{collection}", SetScores).Methods("POST")
+	router.HandleFunc("/collections/{user}/scores/{collection}/{mode}", SetScores).Methods("POST")
 	http.ListenAndServe(":9886", router)
 }
