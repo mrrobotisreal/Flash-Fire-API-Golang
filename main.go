@@ -68,10 +68,10 @@ type JWTClaim struct {
 type iJWT struct {
 	Token string `json:"token"`
 }
-
-//	type CollectionName struct {
-//		Name string `json:"name"`
-//	}
+type iScore struct {
+	Score int    `json:"score"`
+	Name  string `json:"name"`
+}
 type CollectionAndMode struct {
 	Name string `json:"name"`
 	Mode string `json:"mode"`
@@ -309,11 +309,12 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 }
 
 func GetScores(response http.ResponseWriter, request *http.Request) {
-	var scores Scores
 	response.Header().Add("content-type", "application/json")
+	var scores Scores
+	var collectionName iScore
+	json.NewDecoder(request.Body).Decode(&collectionName)
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	collectionName, _ := params["collection"]
 	var user User
 	collection := client.Database("flash-fire-webapp").Collection("users")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
@@ -323,7 +324,7 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "GetScores" }`))
 	}
 	for i := 0; i < len(user.Collections); i++ {
-		if user.Collections[i].Name == collectionName {
+		if user.Collections[i].Name == collectionName.Name {
 			scores.HighScore = user.Collections[i].HighScore
 			scores.MostRecentScore = user.Collections[i].MostRecentScore
 			scores.TotalScores = user.Collections[i].TotalScores
@@ -340,13 +341,10 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 }
 
 func SetScores(response http.ResponseWriter, request *http.Request) {
-	type iScore struct {
-		Score int `json:"score,omitempty"`
-	}
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	collectionName, _ := params["collection"]
+	//collectionName, _ := params["collection"]
 	mode, _ := params["mode"]
 	var scores iScore
 	var user User
@@ -362,7 +360,7 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	}
 	var updatedCollection Collection
 	for i := 0; i < len(user.Collections); i++ {
-		if user.Collections[i].Name == collectionName {
+		if user.Collections[i].Name == scores.Name {
 			updatedCollection = user.Collections[i]
 			switch mode {
 			case "study":
@@ -417,7 +415,7 @@ func main() {
 	router.HandleFunc("/check-jwt/{user}", CheckJWT).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date", SetViewDate).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
-	router.HandleFunc("/collections/{user}/scores/{collection}", GetScores).Methods("GET")
-	router.HandleFunc("/collections/{user}/scores/{collection}/{mode}", SetScores).Methods("POST")
+	router.HandleFunc("/collections/{user}/scores", GetScores).Methods("GET")
+	router.HandleFunc("/collections/{user}/scores/{mode}", SetScores).Methods("POST")
 	http.ListenAndServe(":9886", router)
 }
