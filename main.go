@@ -49,6 +49,33 @@ type User struct {
 	JWT         string       `json:"jwt,omitempty" bson:"jwt,omitempty"`
 	Collections []Collection `json:"collections,omitempty" bson:"collections,omitempty"`
 }
+type Scores struct {
+	HighScore                int   `json:"highScore,omitempty" bson:"highScore,omitempty"`
+	MostRecentScore          int   `json:"mostRecentScore,omitempty" bson:"mostRecentScore,omitempty"`
+	TotalScores              []int `json:"totalScores,omitempty" bson:"totalScores,omitempty"`
+	HighGradeEasy            int   `json:"highGradeEasy,omitempty" bson:"highGradeEasy,omitempty"`
+	MostRecentGradeEasy      int   `json:"mostRecentGradeEasy,omitempty" bson:"mostRecentGradeEasy,omitempty"`
+	TotalGradesEasy          []int `json:"totalGradesEasy,omitempty" bson:"totalGradesEasy,omitempty"`
+	HighGradeDifficult       int   `json:"highGradeDifficult,omitempty" bson:"highGradeDifficult,omitempty"`
+	MostRecentGradeDifficult int   `json:"mostRecentGradeDifficult,omitempty" bson:"mostRecentGradeDifficult,omitempty"`
+	TotalGradesDifficult     []int `json:"totalGradesDifficult,omitempty" bson:"totalGradesDifficult,omitempty"`
+}
+type JWTClaim struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	jwt.RegisteredClaims
+}
+type iJWT struct {
+	Token string `json:"token"`
+}
+
+//	type CollectionName struct {
+//		Name string `json:"name"`
+//	}
+type CollectionAndMode struct {
+	Name string `json:"name"`
+	Mode string `json:"mode"`
+}
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -58,12 +85,6 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
-}
-
-type JWTClaim struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	jwt.RegisteredClaims
 }
 
 func generateJWT(username string, email string) string {
@@ -205,19 +226,8 @@ func CheckJWT(response http.ResponseWriter, request *http.Request) {
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	type iJWT struct {
-		Token string `json:"token"`
-	}
 	var incomingJWT iJWT
 	json.NewDecoder(request.Body).Decode(&incomingJWT)
-	//fmt.Println("incomingJWT:\n\n\n\n\n\n\n", incomingJWT.Token, "\n\n\n\n\n\n\n")
-	//var user User
-	//collection := client.Database("flash-fire-webapp").Collection("users")
-	//ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	//err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
-	//if err != nil {
-	//	fmt.Println("You done fucked up checkin da JWT yo")
-	//}
 	if err := validateJWT(incomingJWT.Token, username); err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
@@ -231,10 +241,7 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	type CollectionName struct {
-		Name string `json:"name"`
-	}
-	var cname CollectionName
+	var cname CollectionAndMode
 	json.NewDecoder(request.Body).Decode(&cname)
 	var user User
 	collection := client.Database("flash-fire-webapp").Collection("users")
@@ -265,10 +272,6 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	type CollectionAndMode struct {
-		Name string `json:"name"`
-		Mode string `json:"mode"`
-	}
 	var cMode CollectionAndMode
 	json.NewDecoder(request.Body).Decode(&cMode)
 	var user User
@@ -305,6 +308,42 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 	json.NewEncoder(response).Encode(&result)
 }
 
+func GetScores(response http.ResponseWriter, request *http.Request) {
+	var scores Scores
+	response.Header().Add("content-type", "application/json")
+	params := mux.Vars(request)
+	username, _ := params["user"]
+	collectionName, _ := params["collection"]
+	var user User
+	collection := client.Database("flash-fire-webapp").Collection("users")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "GetScores" }`))
+	}
+	for i := 0; i < len(user.Collections); i++ {
+		if user.Collections[i].Name == collectionName {
+			scores.HighScore = user.Collections[i].HighScore
+			scores.MostRecentScore = user.Collections[i].MostRecentScore
+			scores.TotalScores = user.Collections[i].TotalScores
+			scores.HighGradeEasy = user.Collections[i].HighGradeEasy
+			scores.MostRecentGradeEasy = user.Collections[i].MostRecentGradeEasy
+			scores.TotalGradesEasy = user.Collections[i].TotalGradesEasy
+			scores.HighGradeDifficult = user.Collections[i].HighGradeDifficult
+			scores.MostRecentGradeDifficult = user.Collections[i].MostRecentGradeDifficult
+			scores.TotalGradesDifficult = user.Collections[i].TotalGradesDifficult
+			break
+		}
+	}
+	json.NewEncoder(response).Encode(&scores)
+}
+
+func SetScores(response http.ResponseWriter, request *http.Request) {
+	response.Header().Add("content-type", "application/json")
+	var scores Scores
+}
+
 func main() {
 	fmt.Println("Starting the application yo...")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
@@ -318,7 +357,7 @@ func main() {
 	router.HandleFunc("/check-jwt/{user}", CheckJWT).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date", SetViewDate).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
-	//router.HandleFunc("")
-	//router.HandleFunc("/add/:user", SaveCollection).Methods("POST")
+	router.HandleFunc("/collections/{user}/scores/{collection}", GetScores).Methods("GET")
+	router.HandleFunc("/collections/{user}/scores/{collection}", SetScores).Methods("POST")
 	http.ListenAndServe(":9886", router)
 }
