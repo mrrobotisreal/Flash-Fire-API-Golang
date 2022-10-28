@@ -11,12 +11,32 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
+	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
+// //////////////////////////
+//
+//	//
+//
+// **"Global" Variables** //
+//
+//	//
+//
+// //////////////////////////
 var client *mongo.Client
 
+// ///////////////////////////
+//
+//	//
+//
+// **Object/Struct Types** //
+//
+//	//
+//
+// ///////////////////////////
 type Card struct {
 	Question string `json:"question,omitempty" bson:"question,omitempty"`
 	Answer   string `json:"answer,omitempty" bson:"answer,omitempty"`
@@ -77,6 +97,15 @@ type CollectionAndMode struct {
 	Mode string `json:"mode"`
 }
 
+// ////////////////////////
+//
+//	//
+//
+// **Helper Functions** //
+//
+//	//
+//
+// ////////////////////////
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
@@ -119,6 +148,25 @@ func validateJWT(signedToken string, username string) (err error) {
 	return nil
 }
 
+func findMax(scores []int) int {
+	max := scores[0]
+	for _, score := range scores {
+		if score > max {
+			max = score
+		}
+	}
+	return max
+}
+
+// ///////////////////////////////
+//
+//	//
+//
+// **Route Handler Functions** //
+//
+//	//
+//
+// ///////////////////////////////
 func SaveSignup(response http.ResponseWriter, request *http.Request) {
 	response.Header().Add("content-type", "application/json")
 	var user User
@@ -159,6 +207,7 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 }
 
 func GetUserCollections(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering GetUserCollections...")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -167,6 +216,7 @@ func GetUserCollections(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
+		log.Println("Error performing FindOne operation in GetUserCollections...\n\n" + err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
 		return
@@ -253,8 +303,6 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 	}
 	for i := 0; i < len(user.Collections); i++ {
 		if user.Collections[i].Name == cname.Name {
-			//updatedCollection := user.Collections[i]
-			//updatedCollection.LastView = time.Now().String()
 			user.Collections[i].LastView = time.Now().String()
 		}
 	}
@@ -344,7 +392,6 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	//collectionName, _ := params["collection"]
 	mode, _ := params["mode"]
 	var scores iScore
 	var user User
@@ -392,18 +439,12 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	json.NewEncoder(response).Encode(&result)
 }
 
-func findMax(scores []int) int {
-	max := scores[0]
-	for _, score := range scores {
-		if score > max {
-			max = score
-		}
-	}
-	return max
-}
-
 func main() {
-	fmt.Println("Starting the application yo...")
+	f, err := os.OpenFile("API_LOGS.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetOutput(f)
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	client, _ = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
 	router := mux.NewRouter()
@@ -417,5 +458,6 @@ func main() {
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
 	router.HandleFunc("/collections/{user}/scores", GetScores).Methods("GET")
 	router.HandleFunc("/collections/{user}/scores/{mode}", SetScores).Methods("POST")
+	fmt.Println("Server successfully started on port :9886...")
 	http.ListenAndServe(":9886", router)
 }
