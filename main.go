@@ -279,11 +279,30 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "SetViewDateModes" }`))
 	}
-	switch cMode.Mode {
-	case "study":
-	case "easy":
-	case "difficult":
+	var updatedCollection Collection
+	for i := 0; i < len(user.Collections); i++ {
+		if user.Collections[i].Name == cMode.Name {
+			updatedCollection = user.Collections[i]
+			switch cMode.Mode {
+			case "study":
+				updatedCollection.LastViewStudy = time.Now().String()
+			case "easy":
+				updatedCollection.LastViewEasy = time.Now().String()
+			case "difficult":
+				updatedCollection.LastViewDifficult = time.Now().String()
+			}
+			user.Collections[i] = updatedCollection
+			break
+		}
 	}
+	filter := bson.D{{"username", username}}
+	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
+	result, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "SetViewDateModes" }`))
+	}
+	json.NewEncoder(response).Encode(&result)
 }
 
 func main() {
