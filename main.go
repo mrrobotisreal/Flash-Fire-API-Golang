@@ -439,6 +439,15 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	json.NewEncoder(response).Encode(&result)
 }
 
+// /////////////////////////////////////////
+//
+//	//
+//
+// **Point Of Entry For Code Execution** //
+//
+//	//
+//
+// /////////////////////////////////////////
 func main() {
 	f, err := os.OpenFile("API_LOGS.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
