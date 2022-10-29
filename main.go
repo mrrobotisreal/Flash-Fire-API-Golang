@@ -96,6 +96,10 @@ type CollectionAndMode struct {
 	Name string `json:"name"`
 	Mode string `json:"mode"`
 }
+type Auth struct {
+	Username string `json:"username,omitempty" bson:"username,omitempty"`
+	Password string `json:"password,omitempty" bson:"password,omitempty"`
+}
 
 // ////////////////////////
 //
@@ -107,16 +111,19 @@ type CollectionAndMode struct {
 //
 // ////////////////////////
 func HashPassword(password string) (string, error) {
+	log.Println("Entering HashPassword..")
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
 
 func CheckPasswordHash(password, hash string) bool {
+	log.Println("Entering CheckPasswordHash..")
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
 func generateJWT(username string, email string) string {
+	log.Println("Entering generateJWT..")
 	claims := &JWTClaim{
 		Username: username,
 		Email:    email,
@@ -124,26 +131,32 @@ func generateJWT(username string, email string) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte("WinTer"))
 	if err != nil {
-		fmt.Println("Error: \n", err)
+		log.Println("Error Performing token.SignedString() Function Call..\n\n", err.Error())
 		return ""
 	}
 	return tokenString
 }
 
 func validateJWT(signedToken string, username string) (err error) {
+	log.Println("Entering validateJWT..")
 	token, err := jwt.ParseWithClaims(signedToken, &JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte("WinTer"), nil
 	})
 	if err != nil {
+		log.Println("Error Performing jwt.ParseWithClaims() Function Call..\n\n", err.Error())
 		return err
 	}
-	//fmt.Println("Token is motherfucking validated yo!!!!")
 	claims, ok := token.Claims.(*JWTClaim)
 	if !ok {
-		err = errors.New("couldn't parse claims sucka")
+		log.Println("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..\n\n")
+		err = errors.New("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..")
+		return err
 	}
-	if claims.Username == username {
-		fmt.Println(username)
+	if claims.Username != username {
+		log.Println("Supplied username does not match claims.Username..\nJWT is not valid; returning error..\n\n")
+		err = errors.New("Error: Incorrect Claims\n" +
+			"One or more claims do not match the supplied information; token is not valid")
+		return err
 	}
 	return nil
 }
@@ -168,6 +181,7 @@ func findMax(scores []int) int {
 //
 // ///////////////////////////////
 func SaveSignup(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering SaveSignup..")
 	response.Header().Add("content-type", "application/json")
 	var user User
 	json.NewDecoder(request.Body).Decode(&user)
@@ -182,11 +196,8 @@ func SaveSignup(response http.ResponseWriter, request *http.Request) {
 }
 
 func CheckLogin(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering CheckLogin..")
 	response.Header().Add("content-type", "application/json")
-	type Auth struct {
-		Username string `json:"username,omitempty" bson:"username,omitempty"`
-		Password string `json:"password,omitempty" bson:"password,omitempty"`
-	}
 	var auth Auth
 	var user User
 	json.NewDecoder(request.Body).Decode(&auth)
@@ -194,14 +205,19 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: auth.Username}).Decode(&user)
 	if err != nil {
-		fmt.Println("Epic login fail!!!!")
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+		}
 	}
 	var authResult bool
 	authResult = CheckPasswordHash(auth.Password, user.Password)
 	if !authResult {
-		fmt.Println("ERROR processing hash result!")
+		log.Println("Failed Password Authentication..")
 	} else {
-		fmt.Printf("get is sucka!!!\n%t", authResult)
+		log.Println("Successful Password Authentication..")
 	}
 	json.NewEncoder(response).Encode(authResult)
 }
