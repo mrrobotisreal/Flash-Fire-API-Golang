@@ -148,7 +148,7 @@ func validateJWT(signedToken string, username string) (err error) {
 	}
 	claims, ok := token.Claims.(*JWTClaim)
 	if !ok {
-		log.Println("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..\n\n")
+		log.Println("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..\n\n", ok)
 		err = errors.New("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..")
 		return err
 	}
@@ -280,12 +280,15 @@ func SaveCollection(response http.ResponseWriter, request *http.Request) {
 	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-
+		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 	}
 	json.NewEncoder(response).Encode(result)
 }
 
 func EditCollection(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering EditCollection..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -296,7 +299,16 @@ func EditCollection(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		fmt.Println("You done fucked up")
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
 	}
 	for i := 0; i < len(user.Collections); i++ {
 		if user.Collections[i].Name == updatedCollection.Name {
@@ -308,23 +320,43 @@ func EditCollection(response http.ResponseWriter, request *http.Request) {
 	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		fmt.Println("You done fucked up")
+		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
 	}
 	json.NewEncoder(response).Encode(result)
 }
 
 func CheckJWT(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering CheckJWT..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
 	var incomingJWT iJWT
 	json.NewDecoder(request.Body).Decode(&incomingJWT)
 	if err := validateJWT(incomingJWT.Token, username); err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
+		switch err.Error() {
+		case "Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..":
+			log.Println("")
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		case "Error: Incorrect Claims\n" + "One or more claims do not match the supplied information; token is not valid":
+			log.Println("CheckJWT Failure Due To Incorrect Claims..\n\n")
+			// is this http code correct?
+			response.WriteHeader(http.StatusNotAcceptable)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		default:
+			log.Println("Error Validating JWT..\n\n")
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
 	} else {
+		log.Println("Successful Validation Of JWT..")
 		response.WriteHeader(http.StatusOK)
-		response.Write([]byte(`{ "message": "Fuck yeah mofo!!! JWT done been verified yo!" }`))
+		response.Write([]byte(`{ "message": "Successful Verification Of JWT" }`))
 	}
 }
 
