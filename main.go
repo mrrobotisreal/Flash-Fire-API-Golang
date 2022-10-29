@@ -191,7 +191,13 @@ func SaveSignup(response http.ResponseWriter, request *http.Request) {
 	user.Collections = []Collection{}
 	coll := client.Database("flash-fire-webapp").Collection("users")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	result, _ := coll.InsertOne(ctx, user)
+	result, err := coll.InsertOne(ctx, user)
+	if err != nil {
+		log.Println("Error Performing InsertOne Operation..\n\n", err.Error())
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
+	}
 	json.NewEncoder(response).Encode(result)
 }
 
@@ -232,15 +238,22 @@ func GetUserCollections(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		log.Println("Error performing FindOne operation in GetUserCollections...\n\n" + err.Error())
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
-		return
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n")
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n" + err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
+			return
+		}
 	}
-	json.NewEncoder(response).Encode(user)
+	json.NewEncoder(response).Encode(&user)
 }
 
 func SaveCollection(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering SaveCollection..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -250,12 +263,24 @@ func SaveCollection(response http.ResponseWriter, request *http.Request) {
 	collection := client.Database("flash-fire-webapp").Collection("users")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
+	if err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n")
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
+	}
 	user.Collections = append(user.Collections, ic)
 	filter := bson.D{{"username", username}}
 	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		fmt.Println("You done fucked up")
+
 	}
 	json.NewEncoder(response).Encode(result)
 }
