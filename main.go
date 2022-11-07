@@ -111,18 +111,25 @@ type Auth struct {
 //
 // ////////////////////////
 func HashPassword(password string) (string, error) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering HashPassword..")
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	log.Println("Exiting HashPassword...")
+	log.Println("\\__________________________________/")
 	return string(bytes), err
 }
 
 func CheckPasswordHash(password, hash string) bool {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering CheckPasswordHash..")
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	log.Println("Exiting CheckPasswordHash...")
+	log.Println("\\__________________________________/")
 	return err == nil
 }
 
 func generateJWT(username string, email string) string {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering generateJWT..")
 	claims := &JWTClaim{
 		Username: username,
@@ -132,32 +139,45 @@ func generateJWT(username string, email string) string {
 	tokenString, err := token.SignedString([]byte("WinTer"))
 	if err != nil {
 		log.Println("Error Performing token.SignedString() Function Call..\n\n", err.Error())
+		log.Println("Exiting generateJWT with errors...")
+		log.Println("\\__________________________________/")
 		return ""
 	}
+	log.Println("Exiting generateJWT successfully...")
+	log.Println("\\__________________________________/")
 	return tokenString
 }
 
 func validateJWT(signedToken string, username string) (err error) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering validateJWT..")
 	token, err := jwt.ParseWithClaims(signedToken, &JWTClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte("WinTer"), nil
 	})
 	if err != nil {
 		log.Println("Error Performing jwt.ParseWithClaims() Function Call..\n\n", err.Error())
+		log.Println("Exiting validateJWT with errors...")
+		log.Println("\\__________________________________/")
 		return err
 	}
 	claims, ok := token.Claims.(*JWTClaim)
 	if !ok {
 		log.Println("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..\n\n", ok)
 		err = errors.New("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..")
+		log.Println("Exiting validateJWT with errors...")
+		log.Println("\\__________________________________/")
 		return err
 	}
 	if claims.Username != username {
 		log.Println("Supplied username does not match claims.Username..\nJWT is not valid; returning error..\n\n")
 		err = errors.New("Error: Incorrect Claims\n" +
 			"One or more claims do not match the supplied information; token is not valid")
+		log.Println("Exiting validateJWT with errors...")
+		log.Println("\\__________________________________/")
 		return err
 	}
+	log.Println("Exiting validateJWT successfully...")
+	log.Println("\\__________________________________/")
 	return nil
 }
 
@@ -181,6 +201,7 @@ func findMax(scores []int) int {
 //
 // ///////////////////////////////
 func SaveSignup(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering SaveSignup..")
 	response.Header().Add("content-type", "application/json")
 	var user User
@@ -196,12 +217,17 @@ func SaveSignup(response http.ResponseWriter, request *http.Request) {
 		log.Println("Error Performing InsertOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		log.Println("Exiting SaveSignup with errors...")
+		log.Println("\\__________________________________/")
 		return
 	}
+	log.Println("Exiting SaveSignup successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(result)
 }
 
 func CheckLogin(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering CheckLogin..")
 	response.Header().Add("content-type", "application/json")
 	var auth Auth
@@ -229,6 +255,7 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 }
 
 func GetUserCollections(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering GetUserCollections...")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
@@ -253,6 +280,7 @@ func GetUserCollections(response http.ResponseWriter, request *http.Request) {
 }
 
 func SaveCollection(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering SaveCollection..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
@@ -288,6 +316,7 @@ func SaveCollection(response http.ResponseWriter, request *http.Request) {
 }
 
 func EditCollection(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering EditCollection..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
@@ -329,6 +358,7 @@ func EditCollection(response http.ResponseWriter, request *http.Request) {
 }
 
 func CheckJWT(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering CheckJWT..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
@@ -361,6 +391,7 @@ func CheckJWT(response http.ResponseWriter, request *http.Request) {
 }
 
 func SetViewDate(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering SetViewDate..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
@@ -401,6 +432,7 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 }
 
 func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering SetViewDateModes..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
@@ -452,6 +484,7 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 }
 
 func GetScores(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering GetScores..")
 	response.Header().Add("content-type", "application/json")
 	var scores Scores
@@ -464,8 +497,16 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "GetScores" }`))
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
 	}
 	for i := 0; i < len(user.Collections); i++ {
 		if user.Collections[i].Name == collectionName.Name {
@@ -485,6 +526,8 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 }
 
 func SetScores(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
+	log.Println("Entering SetScores..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -536,6 +579,8 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 }
 
 func SendTest(response http.ResponseWriter, request *http.Request) {
+	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
+	log.Println("Entering SendTest..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
