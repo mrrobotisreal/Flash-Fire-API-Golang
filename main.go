@@ -361,6 +361,7 @@ func CheckJWT(response http.ResponseWriter, request *http.Request) {
 }
 
 func SetViewDate(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering SetViewDate..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -371,8 +372,16 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "SetViewDate FindOne Operation"}`))
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
 	}
 	for i := 0; i < len(user.Collections); i++ {
 		if user.Collections[i].Name == cname.Name {
@@ -383,13 +392,16 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
+		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "SetViewDate UpdateOne Operation" }`))
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
 	}
 	json.NewEncoder(response).Encode(&result)
 }
 
 func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering SetViewDateModes..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -400,8 +412,16 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "SetViewDateModes" }`))
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
 	}
 	var updatedCollection Collection
 	for i := 0; i < len(user.Collections); i++ {
@@ -423,13 +443,16 @@ func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
 	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
+		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `", "where": "SetViewDateModes" }`))
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
 	}
 	json.NewEncoder(response).Encode(&result)
 }
 
 func GetScores(response http.ResponseWriter, request *http.Request) {
+	log.Println("Entering GetScores..")
 	response.Header().Add("content-type", "application/json")
 	var scores Scores
 	var collectionName iScore
@@ -512,6 +535,23 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	json.NewEncoder(response).Encode(&result)
 }
 
+func SendTest(response http.ResponseWriter, request *http.Request) {
+	response.Header().Add("content-type", "application/json")
+	params := mux.Vars(request)
+	username, _ := params["user"]
+	mode, _ := params["mode"]
+	var user User
+	collection := client.Database("flash-fire-webapp").Collection("users")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte("{\n" +
+			`    "message": "` + err.Error() + `",` + "\n" +
+			`    "where": "SendTest - FindOne Operation"` + "\n}"))
+	}
+}
+
 // /////////////////////////////////////////
 //
 //	//
@@ -540,6 +580,7 @@ func main() {
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
 	router.HandleFunc("/collections/{user}/scores", GetScores).Methods("GET")
 	router.HandleFunc("/collections/{user}/scores/{mode}", SetScores).Methods("POST")
+	router.HandleFunc("/collections/{user}/test/{mode}", SendTest).Methods("GET")
 	fmt.Println("Server successfully started on port :9886...")
 	http.ListenAndServe(":9886", router)
 }
