@@ -557,10 +557,15 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 		case mongo.ErrNoDocuments:
 			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
 			response.WriteHeader(http.StatusNoContent)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting GetScores with errors...")
+			log.Println("\\__________________________________/")
 		default:
 			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting GetScores with errors...")
+			log.Println("\\__________________________________/")
 			return
 		}
 	}
@@ -578,7 +583,10 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 			break
 		}
 	}
+	log.Println("Exiting GetScores successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(&scores)
+	return
 }
 
 func SetScores(response http.ResponseWriter, request *http.Request) {
