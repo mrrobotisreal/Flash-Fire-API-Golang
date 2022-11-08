@@ -442,10 +442,16 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 		case mongo.ErrNoDocuments:
 			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
 			response.WriteHeader(http.StatusNoContent)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting SetViewDate with errors...")
+			log.Println("\\__________________________________/")
+			return
 		default:
 			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting SetViewDate with errors...")
+			log.Println("\\__________________________________/")
 			return
 		}
 	}
@@ -461,9 +467,14 @@ func SetViewDate(response http.ResponseWriter, request *http.Request) {
 		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		log.Println("Exiting SetViewDate with errors...")
+		log.Println("\\__________________________________/")
 		return
 	}
+	log.Println("Exiting SetViewDate successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(&result)
+	return
 }
 
 func SetViewDateModes(response http.ResponseWriter, request *http.Request) {
