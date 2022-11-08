@@ -560,6 +560,7 @@ func GetScores(response http.ResponseWriter, request *http.Request) {
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 			log.Println("Exiting GetScores with errors...")
 			log.Println("\\__________________________________/")
+			return
 		default:
 			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
 			response.WriteHeader(http.StatusInternalServerError)
@@ -603,10 +604,22 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte("{\n" +
-			`    "message": "` + err.Error() + `",` + "\n" +
-			`    "where": "SetScores - FindOne Operation"` + "\n}"))
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting SetScores with errors...")
+			log.Println("\\__________________________________/")
+			return
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting SetScores with errors...")
+			log.Println("\\__________________________________/")
+			return
+		}
 	}
 	var updatedCollection Collection
 	for i := 0; i < len(user.Collections); i++ {
@@ -634,12 +647,17 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	update := bson.D{{"$set", bson.D{{"collections", user.Collections}}}}
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
+		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte("{\n" +
-			`    "message": "` + err.Error() + `",` + "\n" +
-			`    "where": "SetScores - UpdateOne Operation"` + "\n}"))
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		log.Println("Exiting SetScores with errors...")
+		log.Println("\\__________________________________/")
+		return
 	}
+	log.Println("Exiting SetScores successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(&result)
+	return
 }
 
 func SendTest(response http.ResponseWriter, request *http.Request) {
