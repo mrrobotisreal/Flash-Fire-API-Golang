@@ -312,6 +312,8 @@ func SaveCollection(response http.ResponseWriter, request *http.Request) {
 			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting SaveCollection with errors...")
+			log.Println("\\__________________________________/")
 			return
 		}
 	}
@@ -323,7 +325,12 @@ func SaveCollection(response http.ResponseWriter, request *http.Request) {
 		log.Println("Error Performing UpdateOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		log.Println("Exiting SaveCollection with errors...")
+		log.Println("\\__________________________________/")
+		return
 	}
+	log.Println("Exiting SaveCollection successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(result)
 }
 
