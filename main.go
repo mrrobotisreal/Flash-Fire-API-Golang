@@ -393,25 +393,35 @@ func CheckJWT(response http.ResponseWriter, request *http.Request) {
 	if err := validateJWT(incomingJWT.Token, username); err != nil {
 		switch err.Error() {
 		case "Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..":
-			log.Println("")
+			log.Println("Error Performing token.Claims.(*JWTClaim) Read/Assignment Operation..")
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting CheckJWT with errors...")
+			log.Println("\\__________________________________/")
 			return
 		case "Error: Incorrect Claims\n" + "One or more claims do not match the supplied information; token is not valid":
 			log.Println("CheckJWT Failure Due To Incorrect Claims..\n\n")
 			// is this http code correct?
 			response.WriteHeader(http.StatusNotAcceptable)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting CheckJWT with errors...")
+			log.Println("\\__________________________________/")
+			return
 		default:
 			log.Println("Error Validating JWT..\n\n")
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting CheckJWT with errors...")
+			log.Println("\\__________________________________/")
 			return
 		}
 	} else {
 		log.Println("Successful Validation Of JWT..")
 		response.WriteHeader(http.StatusOK)
 		response.Write([]byte(`{ "message": "Successful Verification Of JWT" }`))
+		log.Println("Exiting CheckJWT successfully...")
+		log.Println("\\__________________________________/")
+		return
 	}
 }
 
