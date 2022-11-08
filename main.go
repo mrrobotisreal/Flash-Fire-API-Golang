@@ -240,8 +240,14 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 		switch err {
 		case mongo.ErrNoDocuments:
 			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
 		default:
 			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting CheckLogin with errors...")
+			log.Println("\\__________________________________/")
+			return
 		}
 	}
 	var authResult bool
@@ -251,6 +257,8 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 	} else {
 		log.Println("Successful Password Authentication..")
 	}
+	log.Println("Exiting CheckLogin successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(authResult)
 }
 
@@ -273,9 +281,13 @@ func GetUserCollections(response http.ResponseWriter, request *http.Request) {
 			log.Println("Error Performing FindOne Operation..\n\n" + err.Error())
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
+			log.Println("Exiting GetUserCollections with errors...")
+			log.Println("\\__________________________________/")
 			return
 		}
 	}
+	log.Println("Exiting GetUserCollections successfully...")
+	log.Println("\\__________________________________/")
 	json.NewEncoder(response).Encode(&user)
 }
 
