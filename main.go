@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -79,6 +80,12 @@ type Scores struct {
 	HighGradeDifficult       int   `json:"highGradeDifficult,omitempty" bson:"highGradeDifficult,omitempty"`
 	MostRecentGradeDifficult int   `json:"mostRecentGradeDifficult,omitempty" bson:"mostRecentGradeDifficult,omitempty"`
 	TotalGradesDifficult     []int `json:"totalGradesDifficult,omitempty" bson:"totalGradesDifficult,omitempty"`
+}
+type TestCard struct {
+	Question      string `json:"question"`
+	Answer        string `json:"answer"`
+	Photo         string `json:"photo"`
+	QuestionStyle string `json:"questionStyle"`
 }
 type JWTClaim struct {
 	Username string `json:"username"`
@@ -223,7 +230,7 @@ func SaveSignup(response http.ResponseWriter, request *http.Request) {
 	}
 	log.Println("Exiting SaveSignup successfully...")
 	log.Println("\\__________________________________/")
-	json.NewEncoder(response).Encode(result)
+	json.NewEncoder(response).Encode(&result)
 }
 
 func CheckLogin(response http.ResponseWriter, request *http.Request) {
@@ -379,7 +386,7 @@ func EditCollection(response http.ResponseWriter, request *http.Request) {
 	}
 	log.Println("Exiting EditCollection successfully...")
 	log.Println("\\__________________________________/")
-	json.NewEncoder(response).Encode(result)
+	json.NewEncoder(response).Encode(&result)
 }
 
 func CheckJWT(response http.ResponseWriter, request *http.Request) {
@@ -660,23 +667,81 @@ func SetScores(response http.ResponseWriter, request *http.Request) {
 	return
 }
 
-func SendTest(response http.ResponseWriter, request *http.Request) {
+func GetTest(response http.ResponseWriter, request *http.Request) {
 	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
-	log.Println("Entering SendTest..")
+	log.Println("Entering GetTest..")
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
-	mode, _ := params["mode"]
+	//mode, _ := params["mode"]
+	var cnm CollectionAndMode
 	var user User
+	json.NewDecoder(request.Body).Decode(&cnm)
 	collection := client.Database("flash-fire-webapp").Collection("users")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err := collection.FindOne(ctx, User{Username: username}).Decode(&user)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte("{\n" +
-			`    "message": "` + err.Error() + `",` + "\n" +
-			`    "where": "SendTest - FindOne Operation"` + "\n}"))
+		switch err {
+		case mongo.ErrNoDocuments:
+			log.Println("Error Performing FindOne Operation | No Document Found..\n\n", err.Error())
+			response.WriteHeader(http.StatusNoContent)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting GetTest with errors...")
+			log.Println("\\__________________________________/")
+			return
+		default:
+			log.Println("Error Performing FindOne Operation..\n\n", err.Error())
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			log.Println("Exiting GetTest with errors...")
+			log.Println("\\__________________________________/")
+			return
+		}
 	}
+	//var totalNumMultipleChoice float64
+	//var totalNumWriteAnswer float64
+	var shuffledAnswers []TestCard
+	for i := 0; i < len(user.Collections); i++ {
+		if user.Collections[i].Name == cnm.Name {
+			// for the future when I will assign specific amounts of each type of question
+			//if len(user.Collections)%2 != 0 {
+			//	totalNumMultipleChoice = math.Ceil(float64(len(user.Collections[i].CardList) / 2))
+			//	totalNumWriteAnswer = math.Floor(float64(len(user.Collections[i].CardList) / 2))
+			//} else {
+			//	totalNumMultipleChoice = float64(len(user.Collections) / 2)
+			//	totalNumWriteAnswer = float64(len(user.Collections) / 2)
+			//}
+			rand.Seed(time.Now().UnixNano())
+			rand.Shuffle(len(user.Collections[i].CardList), func(k, l int) {
+				user.Collections[i].CardList[k], user.Collections[i].CardList[l] = user.Collections[i].CardList[l], user.Collections[i].CardList[k]
+			})
+			for j := 0; j < len(user.Collections[i].CardList); j++ {
+				var newCard TestCard
+				newCard.Question = user.Collections[i].CardList[j].Question
+				newCard.Answer = user.Collections[i].CardList[j].Answer
+				newCard.Photo = user.Collections[i].CardList[j].Photo
+				if j%2 == 0 {
+					newCard.QuestionStyle = "multipleChoice"
+					shuffledAnswers = append(shuffledAnswers, newCard)
+				} else {
+					newCard.QuestionStyle = "writtenAnswer"
+					shuffledAnswers = append(shuffledAnswers, newCard)
+				}
+			}
+			rand.Seed(time.Now().UnixNano())
+			rand.Shuffle(len(shuffledAnswers), func(k, l int) {
+				shuffledAnswers[k], shuffledAnswers[l] = shuffledAnswers[l], shuffledAnswers[k]
+			})
+			//rand.Seed(time.Now().UnixNano())
+			//rand.Shuffle(len(shuffledAnswers), func(f, g int) {
+			//	shuffledAnswers[f] shuffledAnswers[g] = shuffledAnswers[g] shuffledAnswers[f]
+			//})
+			break
+		}
+	}
+	log.Println("Exiting GetTest successfully...")
+	log.Println("\\__________________________________/")
+	json.NewEncoder(response).Encode(&shuffledAnswers)
 }
 
 // /////////////////////////////////////////
@@ -707,7 +772,7 @@ func main() {
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
 	router.HandleFunc("/collections/{user}/scores", GetScores).Methods("GET")
 	router.HandleFunc("/collections/{user}/scores/{mode}", SetScores).Methods("POST")
-	router.HandleFunc("/collections/{user}/test/{mode}", SendTest).Methods("GET")
+	router.HandleFunc("/collections/{user}/test", GetTest).Methods("POST")
 	fmt.Println("Server successfully started on port :9886...")
 	http.ListenAndServe(":9886", router)
 }
