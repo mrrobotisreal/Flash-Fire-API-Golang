@@ -28,6 +28,11 @@ import (
 //
 // //////////////////////////
 var client *mongo.Client
+var _en i18n
+var _vi i18n
+var _zh_cn i18n
+var _zh_tw i18n
+var _ru i18n
 
 // ///////////////////////////
 //
@@ -107,6 +112,86 @@ type Auth struct {
 	Username string `json:"username,omitempty" bson:"username,omitempty"`
 	Password string `json:"password,omitempty" bson:"password,omitempty"`
 }
+type APITracking struct {
+	Log        string    `json:"log,omitempty" bson:"log,omitempty"`
+	Name       string    `json:"name,omitempty" bson:"name,omitempty"`
+	RemoteAddr string    `json:"remoteAddr,omitempty" bson:"remoteAddr,omitempty"`
+	Time       time.Time `json:"time,omitempty" bson:"time,omitempty"`
+}
+type UserTracking struct {
+	CreationDate               time.Time `json:"creationDate,omitempty" bson:"creationDate,omitempty"`
+	TotalCreatedCollections    int       `json:"totalCreatedCollections,omitempty" bson:"totalCreatedCollections,omitempty"`
+	TotalCollections           int       `json:"totalCollections,omitempty" bson:"totalCollections,omitempty"`
+	TotalDownloadedCollections int       `json:"totalDownloadedCollections,omitempty" bson:"totalDownloadedCollections,omitempty"`
+}
+type CollectionTracking struct {
+	TotalTimesStudied         int `json:"totalTimesStudied,omitempty" bson:"totalTimesStudied,omitempty"`
+	TotalTimesTestedEasy      int `json:"totalTimesTestedEasy,omitempty" bson:"totalTimesTestedEasy,omitempty"`
+	TotalTimesTestedDifficult int `json:"totalTimesTestedDifficult,omitempty" bson:"totalTimesTestedDifficult,omitempty"`
+}
+type CardTracking struct {
+	TimesCorrect   int `json:"timesCorrect,omitempty" bson:"timesCorrect,omitempty"`
+	TimesIncorrect int `json:"timesIncorrect,omitempty" bson:"timesIncorrect,omitempty"`
+}
+type i18n struct {
+	AppTitle                  string `json:"app-title"`
+	LoginTitle                string `json:"login-title"`
+	SignupTitle               string `json:"signup-title"`
+	MainMenuTitle             string `json:"main-menu-title"`
+	TotalCollectionsTitle     string `json:"total-collections-title"`
+	CreatedAtSpan             string `json:"created-at-span"`
+	LastViewSpan              string `json:"last-view-span"`
+	ViewStatsButton           string `json:"view-stats-button"`
+	ViewStatsTitle            string `json:"view-stats-title"`
+	ViewOverallStatsButton    string `json:"view-overall-stats-button"`
+	CreateNewCollectionButton string `json:"create-new-collection-button"`
+	CreateCollectionTitle     string `json:"create-collection-title"`
+	CollectionNameLabel       string `json:"collection-name-label"`
+	CategoryLabel             string `json:"category-label"`
+	AddCardsLabel             string `json:"add-cards-label"`
+	AddAnImageLabel           string `json:"add-an-image-label"`
+	QuestionLabel             string `json:"question-label"`
+	AnswerLabel               string `json:"answer-label"`
+	AddCardButton             string `json:"add-card-button"`
+	TotalCardsLabel           string `json:"total-cards-label"`
+	SaveCollectionButton      string `json:"save-collection-button"`
+	MainMenuButton            string `json:"main-menu-button"`
+	SettingsButton            string `json:"settings-button"`
+	ShareButton               string `json:"share-button"`
+	ThemesButton              string `json:"themes-button"`
+	AccountButton             string `json:"account-button"`
+	LogoutButton              string `json:"logout-button"`
+	StudyScoresLabel          string `json:"study-scores-label"`
+	TestGradesLabel           string `json:"test-grades-label"`
+	ChooseModeTitle           string `json:"choose-mode-title"`
+	StudyModeLabel            string `json:"study-mode-label"`
+	LastStudiedLabel          string `json:"last-studied-label"`
+	TestModeLabel             string `json:"test-mode-label"`
+	LastTested                string `json:"last-tested"`
+	EasyLabel                 string `json:"easy-label"`
+	DifficultLabel            string `json:"difficult-label"`
+	EditModeLabel             string `json:"edit-mode-label"`
+	StartButton               string `json:"start-button"`
+	ShowStatsButton           string `json:"show-stats-button"`
+	SetTimerLabel             string `json:"set-timer-label"`
+	PauseButton               string `json:"pause-button"`
+	ResumeButton              string `json:"resume-button"`
+	RestartButton             string `json:"restart-buttton"`
+	CardNOfNTitle             string `json:"card-n-of-n-title"`
+	RevealButton              string `json:"reveal-button"`
+	PreviousScore             string `json:"previous-score"`
+	Congratulations           string `json:"congratulations"`
+	BeatPreviousScoreText     string `json:"beat-previous-score-text"`
+	CheckAnswerButton         string `json:"check-answer-button"`
+	GradeLabel                string `json:"grade-label"`
+	WriteCorrectAnswerLabel   string `json:"write-correct-answer-label"`
+	MultipleChoiceLabel       string `json:"multiple-choice-label"`
+	RemoveCardButton          string `json:"remove-card-button"`
+	ConfirmButton             string `json:"confirm-button"`
+	AddedText                 string `json:"added-text"`
+	RemovedText               string `json:"removed-text"`
+	ConfirmedText             string `json:"confirmed-text"`
+}
 
 // ////////////////////////
 //
@@ -117,6 +202,30 @@ type Auth struct {
 //	//
 //
 // ////////////////////////
+func track(tracking APITracking) {
+	log.Println("<~~~API Tracking~~~>")
+	fmt.Println("Fart nuggets!!!!")
+	fmt.Println(tracking.RemoteAddr)
+	fmt.Println(tracking.Time)
+	fmt.Println(tracking.Log)
+	fmt.Println(tracking.Name)
+	//coll := client.Database("flash-fire-webapp").Collection("tracking")
+	//ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	//_, err := coll.InsertOne(ctx, tracking)
+	//if err != nil {
+	//	fmt.Println("We be screwed!")
+	//}
+	log.Println("</~~~API Tracking~~~>")
+}
+func localize(key string) string {
+	switch key {
+	case "main-menu":
+		return _en.MainMenuTitle
+	default:
+		return "default localization"
+	}
+}
+
 func HashPassword(password string) (string, error) {
 	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering HashPassword..")
@@ -208,8 +317,13 @@ func findMax(scores []int) int {
 //
 // ///////////////////////////////
 func SaveSignup(response http.ResponseWriter, request *http.Request) {
+	var tracking APITracking
+	tracking.Time = time.Now()
+	tracking.Name = "SaveSignup"
+	tracking.RemoteAddr = request.RemoteAddr
 	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering SaveSignup..")
+	tracking.Log = "* Entering SaveSignup\n"
 	response.Header().Add("content-type", "application/json")
 	var user User
 	json.NewDecoder(request.Body).Decode(&user)
@@ -219,18 +333,22 @@ func SaveSignup(response http.ResponseWriter, request *http.Request) {
 	user.Collections = []Collection{}
 	coll := client.Database("flash-fire-webapp").Collection("users")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	result, err := coll.InsertOne(ctx, user)
+	_, err := coll.InsertOne(ctx, user)
 	if err != nil {
 		log.Println("Error Performing InsertOne Operation..\n\n", err.Error())
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		log.Println("Exiting SaveSignup with errors...")
 		log.Println("\\__________________________________/")
+		tracking.Log = tracking.Log + "* Exiting SaveSignup with errors...\n"
+		track(tracking)
 		return
 	}
 	log.Println("Exiting SaveSignup successfully...")
 	log.Println("\\__________________________________/")
-	json.NewEncoder(response).Encode(&result)
+	tracking.Log = tracking.Log + "* Exiting SaveSignup successfully\n"
+	track(tracking)
+	json.NewEncoder(response).Encode(&user.JWT)
 }
 
 func CheckLogin(response http.ResponseWriter, request *http.Request) {
@@ -263,6 +381,7 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 		log.Println("Failed Password Authentication..")
 	} else {
 		log.Println("Successful Password Authentication..")
+		// don't forget to generate new JWT here and send it back!
 	}
 	log.Println("Exiting CheckLogin successfully...")
 	log.Println("\\__________________________________/")
@@ -270,8 +389,13 @@ func CheckLogin(response http.ResponseWriter, request *http.Request) {
 }
 
 func GetUserCollections(response http.ResponseWriter, request *http.Request) {
+	var tracking APITracking
+	tracking.Time = time.Now()
+	tracking.Name = "SaveSignup"
+	tracking.RemoteAddr = request.RemoteAddr
 	log.Println("<<~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>")
 	log.Println("Entering GetUserCollections...")
+	tracking.Log = "* Entering GetUserCollections\n"
 	response.Header().Add("content-type", "application/json")
 	params := mux.Vars(request)
 	username, _ := params["user"]
@@ -283,6 +407,7 @@ func GetUserCollections(response http.ResponseWriter, request *http.Request) {
 		switch err {
 		case mongo.ErrNoDocuments:
 			log.Println("Error Performing FindOne Operation | No Document Found..\n\n")
+			tracking.Log = tracking.Log + "* Error Performing FindOne Operation | No Document Found..\n"
 			response.WriteHeader(http.StatusNoContent)
 		default:
 			log.Println("Error Performing FindOne Operation..\n\n" + err.Error())
@@ -290,11 +415,16 @@ func GetUserCollections(response http.ResponseWriter, request *http.Request) {
 			response.Write([]byte(`{ "message": "` + err.Error() + `"}`))
 			log.Println("Exiting GetUserCollections with errors...")
 			log.Println("\\__________________________________/")
+			tracking.Log = tracking.Log + "* Exiting GetUserCollections with errors\n"
+			tracking.Log = tracking.Log + "* Error: " + err.Error() + "\n"
+			track(tracking)
 			return
 		}
 	}
 	log.Println("Exiting GetUserCollections successfully...")
 	log.Println("\\__________________________________/")
+	tracking.Log = tracking.Log + "* Exiting GetUserCollections successfully\n"
+	track(tracking)
 	json.NewEncoder(response).Encode(&user)
 }
 
@@ -338,7 +468,7 @@ func SaveCollection(response http.ResponseWriter, request *http.Request) {
 	}
 	log.Println("Exiting SaveCollection successfully...")
 	log.Println("\\__________________________________/")
-	json.NewEncoder(response).Encode(result)
+	json.NewEncoder(response).Encode(&result)
 }
 
 func EditCollection(response http.ResponseWriter, request *http.Request) {
@@ -428,6 +558,7 @@ func CheckJWT(response http.ResponseWriter, request *http.Request) {
 		response.Write([]byte(`{ "message": "Successful Verification Of JWT" }`))
 		log.Println("Exiting CheckJWT successfully...")
 		log.Println("\\__________________________________/")
+		json.NewEncoder(response).Encode(true)
 		return
 	}
 }
@@ -754,6 +885,16 @@ func GetTest(response http.ResponseWriter, request *http.Request) {
 //
 // /////////////////////////////////////////
 func main() {
+	//var text []byte
+	data, err := os.ReadFile("_en.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(data, &_en)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(localize("main-menu"))
 	f, err := os.OpenFile("API_LOGS.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatal(err)
@@ -770,8 +911,8 @@ func main() {
 	router.HandleFunc("/collections/{user}/edit", EditCollection).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date", SetViewDate).Methods("POST")
 	router.HandleFunc("/collections/{user}/set-view-date-modes", SetViewDateModes).Methods("POST")
-	router.HandleFunc("/collections/{user}/scores", GetScores).Methods("GET")
-	router.HandleFunc("/collections/{user}/scores/{mode}", SetScores).Methods("POST")
+	router.HandleFunc("/collections/{user}/scores", GetScores).Methods("POST")
+	router.HandleFunc("/collections/{user}/scores", SetScores).Methods("POST")
 	router.HandleFunc("/collections/{user}/test", GetTest).Methods("POST")
 	fmt.Println("Server successfully started on port :9886...")
 	http.ListenAndServe(":9886", router)
